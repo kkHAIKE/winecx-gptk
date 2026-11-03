@@ -400,6 +400,7 @@ jobs:
           # ignored, because the XBOX/GIP bus is not built either.
           grep -q '^#define SONAME_LIBSDL2' include/config.h || {
             echo '::error::libSDL2 was not found; winebus would ship with no gamepad backend'
+            grep -i 'sdl' config.log | tail -20
             exit 1
           }
           grep -q '^#define HAVE_FFMPEG 1' include/config.h || {
