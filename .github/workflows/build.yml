@@ -1270,3 +1270,5 @@ jobs:
               WhiskyWineVersion.plist --title "runtime $RUNTIME_VERSION" --notes-file notes.md
           fi
           echo "published $tag" >> "$GITHUB_STEP_SUMMARY"
+
+# touch to force GitHub to (re)register this workflow on the fork default branch
