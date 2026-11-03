@@ -16,7 +16,7 @@ on:
       runner:
         description: "where to build: self-hosted is ~10x faster, hosted is the clean-room check"
         type: choice
-        default: self-hosted
+        default: hosted
         options: [self-hosted, hosted]
   push:
     branches: [main]
@@ -239,7 +239,7 @@ jobs:
           # here reads nixpkgs' propagated-build-inputs, so without them the
           # gstreamer probe fails on a missing glib-2.0 and configure quietly
           # drops winegstreamer
-          for p in freetype gnutls libpng zlib brotli bzip2 nettle libtasn1 libidn2 p11-kit libunistring gmp vulkan-headers ffmpeg-headless \
+          for p in freetype gnutls libpng zlib brotli bzip2 nettle libtasn1 libidn2 p11-kit libunistring gmp vulkan-headers sdl2 ffmpeg-headless \
                    glib orc \
                    gst_all_1.gstreamer gst_all_1.gst-plugins-base gst_all_1.gst-plugins-good \
                    gst_all_1.gst-plugins-bad gst_all_1.gst-libav; do
@@ -368,6 +368,10 @@ jobs:
           export ac_cv_func_pipe2=no
           export ac_cv_lib_soname_freetype="libfreetype.6.dylib"
           export ac_cv_lib_soname_gnutls="libgnutls.30.dylib"
+          # sdl2 is dlopened by winebus by soname; nix gives the dylib an
+          # absolute /nix/store install name, which the relocatability gate
+          # rejects and the user machine cannot resolve
+          export ac_cv_lib_soname_SDL2="libSDL2-2.0.0.dylib"
           # wine dlopens MoltenVK by soname; the bundled copy is found via
           # the loader fallback path whisky already sets for its runtime
           export ac_cv_lib_soname_MoltenVK="libMoltenVK.dylib"
@@ -391,6 +395,13 @@ jobs:
           # a broken pkg-config path ships a runtime with no video decode and
           # says nothing. winedmo backs mfsrcsnk / mfmp4srcsnk / mfasfsrcsnk,
           # which is how a game plays its intro before it lets you in.
+          # same silent-drop trap for SDL2: without it winebus ships a stubbed SDL bus,
+          # and every hidraw gamepad (Xbox/DS4/DS5) gets enumerated by IOHID and then
+          # ignored, because the XBOX/GIP bus is not built either.
+          grep -q '^#define SONAME_LIBSDL2' include/config.h || {
+            echo '::error::libSDL2 was not found; winebus would ship with no gamepad backend'
+            exit 1
+          }
           grep -q '^#define HAVE_FFMPEG 1' include/config.h || {
             echo "::error::ffmpeg was not found; winedmo would ship with no backend"
             grep -i 'ffmpeg\|libav' config.log | tail -20
